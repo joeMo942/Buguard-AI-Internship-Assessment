@@ -3,7 +3,7 @@ from unittest.mock import patch, AsyncMock
 from app.schemas.analysis import RiskScoreResponse, QueryFilter, EnrichmentResponse
 
 @pytest.mark.asyncio
-@patch("app.ai.chains.run_nl_query_chain")
+@patch("app.api.analysis_router.run_nl_query_chain")
 async def test_analyze_query(mock_chain, client):
     # Mock the LLM chain response
     mock_chain.return_value = {
@@ -19,7 +19,7 @@ async def test_analyze_query(mock_chain, client):
     assert data["query_interpreted"]["types"] == ["domain"]
 
 @pytest.mark.asyncio
-@patch("app.ai.chains.run_risk_scoring_chain")
+@patch("app.api.analysis_router.run_risk_scoring_chain")
 async def test_analyze_risk(mock_chain, client):
     mock_chain.return_value = RiskScoreResponse(
         risk_score=5,
@@ -33,7 +33,7 @@ async def test_analyze_risk(mock_chain, client):
     assert data["risk_score"] == 5
 
 @pytest.mark.asyncio
-@patch("app.ai.chains.run_enrichment_chain")
+@patch("app.api.analysis_router.run_enrichment_chain")
 async def test_analyze_enrich(mock_chain, client):
     mock_chain.return_value = EnrichmentResponse(
         environment="prod",
@@ -49,7 +49,7 @@ async def test_analyze_enrich(mock_chain, client):
     assert data["environment"] == "prod"
 
 @pytest.mark.asyncio
-@patch("app.ai.chains.run_report_chain")
+@patch("app.api.analysis_router.run_report_chain")
 async def test_analyze_report(mock_chain, client):
     mock_chain.return_value = "# Mock Report"
     
