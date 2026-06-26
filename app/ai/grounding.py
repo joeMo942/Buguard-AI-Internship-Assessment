@@ -46,12 +46,18 @@ async def get_asset_by_id_with_context(db: AsyncSession, asset_id: str, org_id: 
         return None
         
     # Get relationships where this asset is source
-    rel_stmt_out = select(AssetRelationship).where(AssetRelationship.source_asset_id == asset.id)
+    rel_stmt_out = select(AssetRelationship).where(
+        AssetRelationship.source_asset_id == asset.id,
+        AssetRelationship.org_id == org_id
+    )
     rel_result_out = await db.execute(rel_stmt_out)
     out_rels = rel_result_out.scalars().all()
     
     # Get relationships where this asset is target
-    rel_stmt_in = select(AssetRelationship).where(AssetRelationship.target_asset_id == asset.id)
+    rel_stmt_in = select(AssetRelationship).where(
+        AssetRelationship.target_asset_id == asset.id,
+        AssetRelationship.org_id == org_id
+    )
     rel_result_in = await db.execute(rel_stmt_in)
     in_rels = rel_result_in.scalars().all()
 
@@ -67,12 +73,17 @@ async def execute_asset_filter(
     types: List[str] = None, 
     statuses: List[str] = None, 
     tags: List[str] = None, 
-    value_contains: str = None
-) -> List[Asset]:
+    value_contains: str = None,
+    sort_by: str = "first_seen",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 50
+) -> dict:
     """
     Executes a structured filter against the DB.
     This is called by our backend after the LLM translates the user's NL query into a JSON filter.
     """
+    from sqlalchemy import cast, String
     stmt = select(Asset).where(Asset.org_id == org_id)
     
     if types:
@@ -80,21 +91,34 @@ async def execute_asset_filter(
     if statuses:
         stmt = stmt.where(Asset.status.in_(statuses))
     if tags:
-        # PostgreSQL/SQLite JSON containment check is complex, but for MVP we can filter in memory or use basic JSON operators.
-        # Since we use JSON across DBs, a naive python-side filter or specific dialect filter is needed.
-        # For MVP simplicity, we will fetch and filter in Python if tags are present, 
-        # or use a generic approach if strictly SQL. We'll do a basic python-side filter for tags.
-        pass 
+        # Cross-db naive JSON array check
+        for tag in tags:
+            stmt = stmt.where(cast(Asset.tags, String).ilike(f'%"{tag}"%'))
     if value_contains:
         stmt = stmt.where(Asset.value.ilike(f"%{value_contains}%"))
         
+    # Sorting
+    sort_column = getattr(Asset, sort_by, Asset.first_seen)
+    if sort_order == "asc":
+        stmt = stmt.order_by(sort_column.asc())
+    else:
+        stmt = stmt.order_by(sort_column.desc())
+        
+    # Count total before pagination
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = await db.scalar(count_stmt)
+
+    # Apply pagination
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     assets = result.scalars().all()
-    
-    if tags:
-        assets = [a for a in assets if any(t in a.tags for t in tags)]
         
-    return assets
+    return {
+        "assets": assets,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
 
 def format_single_asset(asset: Asset) -> dict:
     return {
@@ -102,6 +126,9 @@ def format_single_asset(asset: Asset) -> dict:
         "type": asset.type,
         "value": asset.value,
         "status": asset.status,
+        "first_seen": asset.first_seen.isoformat() if asset.first_seen else None,
+        "last_seen": asset.last_seen.isoformat() if asset.last_seen else None,
+        "source": asset.source,
         "tags": asset.tags,
         "metadata": asset.metadata_
     }

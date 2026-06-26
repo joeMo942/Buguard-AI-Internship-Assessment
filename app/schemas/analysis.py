@@ -9,6 +9,8 @@ class QueryFilter(BaseModel):
     statuses: Optional[List[str]] = Field(default=None, description="Asset statuses to filter by (e.g. 'active', 'stale')")
     tags: Optional[List[str]] = Field(default=None, description="Tags to filter by")
     value_contains: Optional[str] = Field(default=None, description="Substring match for the asset value")
+    is_ambiguous: bool = Field(default=False, description="Set to true if the query is too ambiguous")
+    clarifying_question: Optional[str] = Field(default=None, description="Question to ask the user if ambiguous")
 
 class RiskScoreResponse(BaseModel):
     """
@@ -17,6 +19,20 @@ class RiskScoreResponse(BaseModel):
     risk_score: int = Field(..., ge=1, le=10, description="Risk score from 1 to 10")
     summary: str = Field(..., description="Concise summary explaining the risk score")
     findings: List[str] = Field(..., description="Specific risk findings (e.g. 'Expired certificate')")
+
+class GroupAssetRequest(BaseModel):
+    """
+    Schema for requesting analysis on multiple assets.
+    """
+    asset_ids: List[str]
+
+class GroupRiskScoreResponse(BaseModel):
+    """
+    Schema for the group risk scoring output.
+    """
+    overall_risk_score: int
+    summary: str
+    asset_risks: Dict[str, RiskScoreResponse]
 
 class EnrichmentResponse(BaseModel):
     """
@@ -34,4 +50,7 @@ class NLQueryResponse(BaseModel):
     """
     query_interpreted: QueryFilter
     assets_found: int
+    page: int = 1
+    page_size: int = 50
     assets: List[Dict[str, Any]]
+    clarifying_question: Optional[str] = None

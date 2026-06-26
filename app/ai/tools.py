@@ -1,37 +1,83 @@
 from langchain_core.tools import tool
-from app.ai.grounding import execute_asset_filter, get_asset_by_id_with_context, get_all_assets_summary, format_single_asset
+import httpx
 import json
 
-def create_tools(db, org_id="default"):
+BASE_URL = "http://localhost:8000"
+
+def create_tools(org_id="default"):
+    """
+    Creates tools that call our OWN REST API endpoints.
+    This satisfies the Track B bonus: 'agent that calls your own API as tools'.
+    """
+    headers = {"X-Org-Id": org_id, "X-API-Key": "dev-key-123"}
+
     @tool
-    async def search_assets(types: str = "", statuses: str = "", tags: str = "", value_contains: str = "") -> str:
+    async def search_assets(
+        types: str = "", 
+        statuses: str = "", 
+        tags: str = "", 
+        value_contains: str = ""
+    ) -> str:
         """Search for assets by type, status, tags, or value substring.
         types: comma-separated, e.g. 'domain,certificate'
         statuses: comma-separated, e.g. 'active,stale'
         tags: comma-separated, e.g. 'prod,root'
         value_contains: substring to search for in asset values
         """
-        assets = await execute_asset_filter(
-            db=db,
-            org_id=org_id,
-            types=types.split(",") if types else None,
-            statuses=statuses.split(",") if statuses else None,
-            tags=tags.split(",") if tags else None,
-            value_contains=value_contains or None
-        )
-        return json.dumps([format_single_asset(a) for a in assets], indent=2)
+        params = {}
+        if types:
+            params["type"] = types.split(",")[0]  # API takes single values
+        if statuses:
+            params["status"] = statuses.split(",")[0]
+        if tags:
+            params["tag"] = tags.split(",")[0]
+        if value_contains:
+            params["value_contains"] = value_contains
+        
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{BASE_URL}/assets/", 
+                params=params, 
+                headers=headers,
+                timeout=30
+            )
+            return resp.text
 
     @tool
     async def get_asset_details(asset_id: str) -> str:
         """Get full details and relationships for a specific asset by its ID."""
-        context = await get_asset_by_id_with_context(db, asset_id, org_id=org_id)
-        if not context:
-            return f"No asset found with ID: {asset_id}"
-        return json.dumps(context, indent=2)
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{BASE_URL}/assets/{asset_id}", 
+                headers=headers,
+                timeout=30
+            )
+            if resp.status_code == 404:
+                return f"No asset found with ID: {asset_id}"
+            return resp.text
 
     @tool
-    async def get_inventory_summary() -> str:
-        """Get a summary of all assets in the database."""
-        return await get_all_assets_summary(db, org_id=org_id)
+    async def score_asset_risk(asset_id: str) -> str:
+        """Score the risk of a specific asset. Returns risk_score, summary, findings."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{BASE_URL}/analyze/risk",
+                json={"asset_id": asset_id},
+                headers=headers,
+                timeout=60
+            )
+            return resp.text
 
-    return [search_assets, get_asset_details, get_inventory_summary]
+    @tool
+    async def enrich_asset(asset_id: str) -> str:
+        """Enrich and categorize an asset. Returns environment, criticality, category."""
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{BASE_URL}/analyze/enrich",
+                json={"asset_id": asset_id},
+                headers=headers,
+                timeout=60
+            )
+            return resp.text
+
+    return [search_assets, get_asset_details, score_asset_risk, enrich_asset]

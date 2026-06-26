@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import os
 from app.ai.llm import get_llm
 from app.ai.guardrails import validate_asset_references
 
@@ -31,6 +32,10 @@ async def test_llm_hallucination_guardrails():
     assert result3["is_grounded"] is False
     assert "malicious.com" in result3["hallucinated_values"]
 
+@pytest.mark.skipif(
+    os.environ.get("GOOGLE_API_KEY", "").startswith("fake"),
+    reason="Skipping live LLM test in CI"
+)
 @pytest.mark.asyncio
 async def test_llm_chain_output_formatting():
     """

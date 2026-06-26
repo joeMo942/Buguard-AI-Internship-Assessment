@@ -46,6 +46,6 @@ class AssetResponse(BaseModel):
     last_seen: datetime
     source: str
     tags: List[str]
-    metadata_: Dict[str, Any]
+    metadata_: Dict[str, Any] = Field(alias="metadata")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

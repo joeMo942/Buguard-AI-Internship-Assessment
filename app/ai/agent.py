@@ -12,8 +12,8 @@ RULES:
 - Always cite specific asset IDs and values from tool output.
 """
 
-async def run_agent(db, user_input: str, org_id: str = "default") -> str:
-    tools = create_tools(db, org_id=org_id)
+async def run_agent(user_input: str, org_id: str = "default") -> str:
+    tools = create_tools(org_id=org_id)
     llm = get_llm(temperature=0.0)
     
     agent = create_react_agent(llm, tools, state_modifier=AGENT_SYSTEM_PROMPT)

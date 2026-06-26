@@ -9,14 +9,49 @@ import uuid
 from app.schemas.asset import AssetImportItem, ImportResponse
 from app.models.asset import Asset
 from app.models.relationship import AssetRelationship
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-async def process_import(db: AsyncSession, items: List[AssetImportItem], org_id: str = "default") -> ImportResponse:
+def check_certificate_lifecycle(asset: Asset):
+    """Deterministically flag expired or expiring-soon certificates."""
+    if asset.type != 'certificate':
+        return
+    meta = asset.metadata_ or {}
+    expires_str = meta.get("expires") or meta.get("expiry") or meta.get("not_after")
+    if not expires_str:
+        return
+    try:
+        expires_dt = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return
+    
+    now = datetime.now(timezone.utc)
+    if expires_dt < now:
+        asset.status = "stale"
+        asset.tags = list(set((asset.tags or []) + ["expired-cert"]))
+    elif expires_dt < now + timedelta(days=30):
+        asset.tags = list(set((asset.tags or []) + ["expiring-soon"]))
+
+from pydantic import ValidationError
+
+async def process_import(db: AsyncSession, raw_items: List[Dict[str, Any]], org_id: str = "default") -> ImportResponse:
     response = ImportResponse()
     relationships_to_create = []
 
-    for index, item in enumerate(items):
+    for index, raw in enumerate(raw_items):
+        try:
+            item = AssetImportItem(**raw)
+        except ValidationError as ve:
+            # We must serialize the Pydantic error list to a basic dict so it doesn't cause issues
+            error_details = ve.errors()
+            for err in error_details:
+                if 'ctx' in err and 'error' in err['ctx'] and isinstance(err['ctx']['error'], Exception):
+                    err['ctx']['error'] = str(err['ctx']['error'])
+            response.skipped += 1
+            response.errors.append({"index": index, "error": error_details})
+            continue
+
         try:
             if not item.type or not item.value:
                 response.skipped += 1
@@ -47,6 +82,13 @@ async def process_import(db: AsyncSession, items: List[AssetImportItem], org_id:
                 merged_tags = list(set(existing_asset.tags + new_tags))
                 merged_metadata = {**existing_asset.metadata_, **new_metadata}
                 
+                # Track source provenance
+                if item.source and item.source != existing_asset.source:
+                    sources = existing_asset.metadata_.get("_sources", [existing_asset.source])
+                    if item.source not in sources:
+                        sources.append(item.source)
+                    merged_metadata["_sources"] = sources
+                
                 existing_asset.tags = merged_tags
                 existing_asset.metadata_ = merged_metadata
                 existing_asset.last_seen = datetime.now(timezone.utc)  # Explicitly trigger update
@@ -72,6 +114,8 @@ async def process_import(db: AsyncSession, items: List[AssetImportItem], org_id:
                 db.add(db_asset)
                 response.created += 1
 
+            check_certificate_lifecycle(db_asset)
+
             # Extract implicit relationships
             if item.parent:
                 relationships_to_create.append((db_asset.id, item.parent, "parent"))
@@ -92,7 +136,7 @@ async def process_import(db: AsyncSession, items: List[AssetImportItem], org_id:
     await db.commit()
 
     # Validate that relationship targets actually exist in the DB
-    imported_ids = {item.id for item in items if item.id}
+    imported_ids = {raw.get("id") for raw in raw_items if raw.get("id")}
     existing_ids_stmt = select(Asset.id)
     existing_result = await db.execute(existing_ids_stmt)
     all_known_ids = {row[0] for row in existing_result.fetchall()} | imported_ids

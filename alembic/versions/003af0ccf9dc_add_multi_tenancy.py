@@ -1,7 +1,7 @@
 """add multi_tenancy
 
 Revision ID: 003af0ccf9dc
-Revises: 23ceb0a35e27
+Revises: 4cb8f4752233
 Create Date: 2026-06-26 20:53:33.441532
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '003af0ccf9dc'
-down_revision: Union[str, None] = '23ceb0a35e27'
+down_revision: Union[str, None] = '4cb8f4752233'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,18 +1,84 @@
 [
   {
-    "id": "a1", "type": "domain", "value": "example.com",
+    "id": "dom1", "type": "domain", "value": "example.com",
+    "status": "active", "source": "scan", "tags": ["root", "prod"]
+  },
+  {
+    "id": "sub1", "type": "subdomain", "value": "api.example.com",
+    "status": "active", "source": "scan", "tags": ["prod", "api"],
+    "parent": "dom1"
+  },
+  {
+    "id": "sub2", "type": "subdomain", "value": "dev.example.com",
+    "status": "stale", "source": "manual", "tags": ["dev"],
+    "parent": "dom1"
+  },
+  {
+    "id": "ip1", "type": "ip_address", "value": "203.0.113.10",
     "status": "active", "source": "scan",
-    "tags": ["root"], "metadata": {}
+    "resolves_to": "sub1"
   },
   {
-    "id": "a2", "type": "subdomain", "value": "api.example.com",
-    "status": "active", "source": "scan", "tags": ["prod"],
-    "metadata": {}, "parent": "a1"
+    "id": "ip2", "type": "ip_address", "value": "203.0.113.20",
+    "status": "active", "source": "scan",
+    "resolves_to": "sub2"
   },
   {
-    "id": "a3", "type": "certificate", "value": "CN=api.example.com",
-    "status": "active", "source": "scan", "tags": [],
-    "metadata": { "issuer": "Let’s Encrypt", "expires": "2025-01-02" },
-    "covers": "a2"
+    "id": "svc1", "type": "service", "value": "443/tcp",
+    "status": "active", "source": "scan",
+    "metadata": {"banner": "nginx/1.21.0"},
+    "runs_on": "ip1"
+  },
+  {
+    "id": "svc2", "type": "service", "value": "3306/tcp",
+    "status": "active", "source": "scan",
+    "tags": ["database"], "metadata": {"banner": "MySQL 8.0"},
+    "runs_on": "ip1"
+  },
+  {
+    "id": "svc3", "type": "service", "value": "22/tcp",
+    "status": "stale", "source": "scan",
+    "metadata": {"banner": "OpenSSH 7.2"},
+    "runs_on": "ip2"
+  },
+  {
+    "id": "cert1", "type": "certificate", "value": "CN=api.example.com",
+    "status": "active", "source": "scan",
+    "metadata": {"issuer": "Let's Encrypt", "expires": "2027-12-31T23:59:59Z"},
+    "covers": "sub1"
+  },
+  {
+    "id": "cert2", "type": "certificate", "value": "CN=dev.example.com",
+    "status": "active", "source": "scan",
+    "metadata": {"issuer": "Internal CA", "expires": "2020-01-01T00:00:00Z"},
+    "covers": "sub2"
+  },
+  {
+    "id": "cert3", "type": "certificate", "value": "CN=expiring.example.com",
+    "status": "active", "source": "scan",
+    "metadata": {"issuer": "Let's Encrypt", "expires": "2026-07-15T00:00:00Z"}
+  },
+  {
+    "id": "tech1", "type": "technology", "value": "nginx",
+    "status": "active", "source": "scan",
+    "metadata": {"version": "1.21.0"},
+    "runs_on": "sub1"
+  },
+  {
+    "id": "tech2", "type": "technology", "value": "React",
+    "status": "active", "source": "scan"
+  },
+  {
+    "id": "arch1", "type": "domain", "value": "old-company.com",
+    "status": "archived", "source": "manual", "tags": ["legacy"]
+  },
+  {
+    "id": "malformed1", "type": "domain"
+  },
+  {
+    "id": "malformed2", "value": "missing-type.com", "source": "manual"
+  },
+  {
+    "id": "malformed3", "type": "invalid_type", "value": "bad-type.com"
   }
 ]

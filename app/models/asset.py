@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Enum, DateTime, JSON, UniqueConstraint
+from sqlalchemy import Column, String, Enum, DateTime, JSON, UniqueConstraint, Index
 from sqlalchemy.sql import func
 from app.models.base import Base
 
@@ -18,4 +18,7 @@ class Asset(Base):
 
     __table_args__ = (
         UniqueConstraint('org_id', 'type', 'value', name='uq_org_asset_type_value'),
+        Index('ix_assets_type', 'type'),
+        Index('ix_assets_status', 'status'),
+        Index('ix_assets_org_type_status', 'org_id', 'type', 'status'),
     )

@@ -35,6 +35,79 @@ A robust, multi-tenant cybersecurity asset management backend powered by FastAPI
    ```
 4. The API will be available at `http://localhost:8000`. You can view the interactive Swagger docs at `http://localhost:8000/docs`.
 
+## 📝 Example Prompts & Outputs
+
+### 1. Natural Language Query
+**Prompt**: "Show me all active certificates"
+**Endpoint**: `POST /analyze/query`
+**Output**:
+```json
+{
+  "query_interpreted": {
+    "types": ["certificate"],
+    "statuses": ["active"],
+    "tags": null,
+    "value_contains": null
+  },
+  "assets_found": 1,
+  "page": 1,
+  "page_size": 50,
+  "assets": [
+    {
+      "id": "a3",
+      "type": "certificate",
+      "value": "CN=api.example.com",
+      "status": "active",
+      "tags": [],
+      "metadata": {
+        "issuer": "Let’s Encrypt",
+        "expires": "2025-01-02"
+      }
+    }
+  ]
+}
+```
+
+### 2. Risk Scoring
+**Prompt**: `POST /analyze/risk` with `{"asset_id": "a3"}`
+**Output**:
+```json
+{
+  "risk_score": 8,
+  "summary": "High risk due to expired certificate.",
+  "findings": [
+    "Certificate expired on 2025-01-02"
+  ]
+}
+```
+
+### 3. Automated Enrichment
+**Prompt**: `POST /analyze/enrich` with `{"asset_id": "a2"}`
+**Output**:
+```json
+{
+  "environment": "prod",
+  "criticality": "high",
+  "category": "application",
+  "suggested_metadata": {
+    "public_facing": true
+  },
+  "suggested_tags": [
+    "api-gateway"
+  ]
+}
+```
+
+### 4. Natural Language Report Generation
+**Endpoint**: `POST /analyze/report`
+**Payload**: `{"types": ["certificate"]}`
+**Output**:
+```json
+{
+  "report": "# Asset Security Report\n\n## Executive Summary\nFound 3 certificates.\n\n## Risk Findings\n- **CN=api.example.com**: Expired on 2025-01-02.\n- **CN=dev.example.com**: Expired on 2020-01-01.\n"
+}
+```
+
 ## 🧪 Running Tests & Evals
 
 The project includes a full suite of Pytest unit tests and an AI evaluation harness.
@@ -50,3 +123,4 @@ docker-compose run --rm app pytest -v
 3. **Graph Relationships:** Modeled in a relational database using an adjacency list pattern (`asset_relationships` table). For extreme scale, this could be migrated to a dedicated Graph Database (like Neo4j), but PostgreSQL is sufficient and reduces infrastructure complexity for the MVP.
 4. **Anti-Hallucination:** Rather than relying solely on prompt engineering, deterministic guardrails were implemented. The system parses the LLM output for asset IDs (`a123`) and values (`example.com`), and validates them against a pre-fetched set of known good values from the DB.
 5. **Agentic Framework:** Due to LangChain 0.3 deprecating `create_react_agent` from the core package, the autonomous agent is built using the newer, state-based `langgraph` framework, ensuring the application is future-proof.
+6. **Conflicting Data Merge Strategy:** When the same asset (by type+value) is imported from different sources, the system uses a **last-write-wins** strategy. Tags are merged (union), and metadata keys from the newer import overwrite existing keys. The `source` field retains the original value. This balances simplicity with data freshness.

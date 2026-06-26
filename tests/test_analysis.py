@@ -9,6 +9,8 @@ async def test_analyze_query(mock_chain, client):
     mock_chain.return_value = {
         "query_interpreted": QueryFilter(types=["domain"]).model_dump(),
         "assets_found": 1,
+        "page": 1,
+        "page_size": 50,
         "assets": [{"id": "1", "type": "domain", "value": "test.com"}]
     }
     

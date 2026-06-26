@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     GOOGLE_API_KEY: str
     LLM_MODEL: str = "gemini-2.0-flash"
+    API_KEYS: str = "dev-key-123"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
