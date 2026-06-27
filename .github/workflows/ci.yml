@@ -28,4 +28,4 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/darkatlas_test
           GOOGLE_API_KEY: fake-key-for-ci
-          LLM_MODEL: gemini-2.0-flash
+          LLM_MODEL: gemini-3.5-flash
