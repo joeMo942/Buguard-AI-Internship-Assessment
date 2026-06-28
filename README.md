@@ -24,16 +24,42 @@ A robust, multi-tenant cybersecurity asset management backend powered by FastAPI
 ## 📦 Setup & Installation
 
 1. Clone the repository.
-2. Copy `.env.example` to `.env` and insert your Gemini API Key:
+2. Copy `.env.example` to `.env` and insert your Gemini API Key (and optionally your own API Key for `API_KEYS`):
    ```bash
    cp .env.example .env
-   # Edit .env and set GEMINI_API_KEY
+   # Edit .env and set GOOGLE_API_KEY and API_KEYS
    ```
-3. Boot the environment using Docker Compose:
+
+### Running with Docker (Recommended)
+
+1. Boot the environment using Docker Compose:
    ```bash
    docker-compose up --build
    ```
-4. The API will be available at `http://localhost:8000`. You can view the interactive Swagger docs at `http://localhost:8000/docs`.
+2. The API will be available at `http://localhost:8000`. You can view the interactive Swagger docs at `http://localhost:8000/docs`.
+
+### Running Locally (without Docker)
+
+1. Ensure you have PostgreSQL installed and running locally, or use a local Docker Postgres instance:
+   ```bash
+   docker run --name darkatlas-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=darkatlas -p 5432:5432 -d postgres:16-alpine
+   ```
+2. Update the `DATABASE_URL` in your `.env` file to point to your local Postgres instance (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/darkatlas`).
+3. Create a virtual environment and install dependencies:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+4. Run the database migrations:
+   ```bash
+   alembic upgrade head
+   ```
+5. Start the FastAPI server:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+6. The API will be available at `http://localhost:8000`.
 
 ## 📝 Example Prompts & Outputs
 

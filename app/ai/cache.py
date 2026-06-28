@@ -1,7 +1,7 @@
 from functools import lru_cache
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class LLMCache:
     def __init__(self, ttl_seconds: int = 300):
@@ -15,12 +15,12 @@ class LLMCache:
     def get(self, chain_name: str, inputs: dict):
         key = self._key(chain_name, inputs)
         entry = self._cache.get(key)
-        if entry and datetime.utcnow() - entry["ts"] < self._ttl:
+        if entry and datetime.now(timezone.utc) - entry["ts"] < self._ttl:
             return entry["value"]
         return None
     
     def set(self, chain_name: str, inputs: dict, value):
         key = self._key(chain_name, inputs)
-        self._cache[key] = {"value": value, "ts": datetime.utcnow()}
+        self._cache[key] = {"value": value, "ts": datetime.now(timezone.utc)}
 
 llm_cache = LLMCache()
