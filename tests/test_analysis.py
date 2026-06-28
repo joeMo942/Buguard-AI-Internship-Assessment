@@ -14,7 +14,7 @@ async def test_analyze_query(mock_chain, client):
         "assets": [{"id": "1", "type": "domain", "value": "test.com"}]
     }
     
-    response = client.post("/analyze/query", json={"question": "show domains"})
+    response = client.post("/analyze/query", json={"question": "show domains"}, headers={"X-API-Key": "admin-key-123"})
     assert response.status_code == 200
     data = response.json()
     assert data["assets_found"] == 1
@@ -29,7 +29,7 @@ async def test_analyze_risk(mock_chain, client):
         findings=["Test finding"]
     )
     
-    response = client.post("/analyze/risk", json={"asset_id": "a1"})
+    response = client.post("/analyze/risk", json={"asset_id": "a1"}, headers={"X-API-Key": "admin-key-123"})
     assert response.status_code == 200
     data = response.json()
     assert data["risk_score"] == 5
@@ -45,7 +45,7 @@ async def test_analyze_enrich(mock_chain, client):
         suggested_tags=["new_tag"]
     )
     
-    response = client.post("/analyze/enrich", json={"asset_id": "a1"})
+    response = client.post("/analyze/enrich", json={"asset_id": "a1"}, headers={"X-API-Key": "admin-key-123"})
     assert response.status_code == 200
     data = response.json()
     assert data["environment"] == "prod"
@@ -55,7 +55,7 @@ async def test_analyze_enrich(mock_chain, client):
 async def test_analyze_report(mock_chain, client):
     mock_chain.return_value = "# Mock Report"
     
-    response = client.post("/analyze/report")
+    response = client.post("/analyze/report", headers={"X-API-Key": "admin-key-123"})
     assert response.status_code == 200
     data = response.json()
     assert data["report"] == "# Mock Report"
